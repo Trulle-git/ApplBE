@@ -3,6 +3,7 @@ const express = require('express')
 const formData = require('express-form-data');
 const cors = require('cors')
 const multer = require('multer');
+const fs = require('fs')
 require('dotenv').config();
 
 const app = express() //  initiallising Express server
@@ -46,33 +47,10 @@ app.get('/',(req, res)=>{
     return res.json("whats")
 })
 
+// Products
 //  products list
 app.get('/products',(req, res)=>{
     const sql ="SELECT * FROM products"
-    db.query(sql, (err, data)=>{
-        if(err) {
-            return res.json(err)
-        } else{
-            return res.json(data)
-        }
-    })  
-})
-
-//  Story list
-app.get('/stories',(req, res)=>{
-    const sql ="SELECT * FROM story"
-    db.query(sql, (err, data)=>{
-        if(err) {
-            return res.json(err)
-        } else{
-            return res.json(data)
-        }
-    })  
-})
-
-//  Test list
-app.get('/testimonial',(req, res)=>{
-    const sql ="SELECT * FROM testimonial"
     db.query(sql, (err, data)=>{
         if(err) {
             return res.json(err)
@@ -170,35 +148,44 @@ app.post('/filterProducts',upload.single('testImage'),(req, res)=>{
     })   
 })
 
-// add Testimonial
-app.post('/addTest',upload.single('testImage'),(req, res)=>{
-    const prop = req.body
-    const image = req.file.filename
-    console.log(image)
-
-    const sql ="INSERT INTO testimonial (testtitle, testcontent, testname, testrating, testimage) VALUES ($1, $2, $3, $4, $5)"
-    db.query(sql, [prop.testTitle, prop.testContent, prop.testName, prop.testRating, image], (err, result) => {
-        if (err) {
-        console.error('Error inserting data into MySQL:', err);
+// Delete Products
+app.delete('/RemoveProduct',(req, res)=>{
+    const {id, image1, image2, image3, image4} = req.body;
+    const file = [image1, image2, image3, image4]
+    let delfile = true
+    file.map((image)=>{
+        fs.unlink(`public/upload/${image}`, (err)=>{
+            if(err){
+                console.log(err)
+                delfile=false
+            }
+        })
+    })
+    if(delfile){
+        const sql = `DELETE FROM products WHERE "productId"='${id}';`
+        db.query(sql, (err, result)=>{            
+            if(err) return res.json(err)
+            return res.json(result)
+            // if(err) console.log(res.json(err))
+            // console.log(res.json(result))
+        })
+    } else{
+        console.log("false")
         res.status(500).json({ error: 'Internal server error' });
-        } else {
-        res.status(200).json({ message: 'Testimonial Updated' });
-        }
-    })  
+    }
+    
+
 })
 
-// Update Testimonial
-app.put('/updateTest',upload.single('testImage'),(req, res)=>{
-    const {id, testTitle, testContent, testName, testRating} =req.body
-    const image = req.files.image?req.files.image.filename:req.body.testImage
-    
-    const sql =`UPDATE testimonial SET "testTitle"='${testTitle}', "testContent"='${testContent}', "testName"='${testName}', "testRating"='${testRating}', "testimage"='${image}' WHERE "id" = '${id}'`
-    db.query(sql,(err, result) => {
-        if (err) {
-        console.error('Error inserting data into MySQL:', err);
-        res.status(500).json({ error: 'Internal server error' });
-        } else {
-        res.status(200).json({ message: 'Product Updated' });
+//  Story
+//  Story list
+app.get('/stories',(req, res)=>{
+    const sql ="SELECT * FROM story"
+    db.query(sql, (err, data)=>{
+        if(err) {
+            return res.json(err)
+        } else{
+            return res.json(data)
         }
     })  
 })
@@ -266,6 +253,104 @@ app.get('/liveProject',(req, res)=>{
     })  
 })
 
+// Delete Products
+app.delete('/RemoveStory',(req, res)=>{
+    
+    const {id, image1, image2, image3, image4} = req.body;
+    const file = [image1, image2, image3, image4]
+    console.log(req.body)
+    let delfile = true
+    file.map((image)=>{
+        fs.unlink(`public/upload/${image}`, (err)=>{
+            if(err){
+                console.error(err)
+                delfile=false
+            }
+        })
+    })
+    if(delfile){
+        const sql = `DELETE FROM story WHERE "storyid"='${id}';`
+        db.query(sql, (err, result)=>{    
+            // if(err) console.log("err")
+            // console.log("result")        
+                if(err) return res.json(err)
+                return res.json(result)            
+        })
+    } else{
+        console.log("fasle")
+        res.status(500).json({ error: 'Internal server error' });
+    }
+    
+
+})
+
+// Testimonial
+//  Test list
+app.get('/testimonial',(req, res)=>{
+    const sql ="SELECT * FROM testimonial"
+    db.query(sql, (err, data)=>{
+        if(err) {
+            return res.json(err)
+        } else{
+            return res.json(data)
+        }
+    })  
+})
+
+// add Testimonial
+app.post('/addTest',upload.single('testImage'),(req, res)=>{
+    const prop = req.body
+    const image = req.file.filename
+    console.log(image)
+
+    const sql ="INSERT INTO testimonial (testtitle, testcontent, testname, testrating, testimage) VALUES ($1, $2, $3, $4, $5)"
+    db.query(sql, [prop.testTitle, prop.testContent, prop.testName, prop.testRating, image], (err, result) => {
+        if (err) {
+        console.error('Error inserting data into MySQL:', err);
+        res.status(500).json({ error: 'Internal server error' });
+        } else {
+        res.status(200).json({ message: 'Testimonial Updated' });
+        }
+    })  
+})
+
+// Update Testimonial
+app.put('/updateTest',upload.single('testImage'),(req, res)=>{
+    const {id, testTitle, testContent, testName, testRating} =req.body
+    const image = req.files.image?req.files.image.filename:req.body.testImage
+    
+    const sql =`UPDATE testimonial SET "testTitle"='${testTitle}', "testContent"='${testContent}', "testName"='${testName}', "testRating"='${testRating}', "testimage"='${image}' WHERE "id" = '${id}'`
+    db.query(sql,(err, result) => {
+        if (err) {
+        console.error('Error inserting data into MySQL:', err);
+        res.status(500).json({ error: 'Internal server error' });
+        } else {
+        res.status(200).json({ message: 'Product Updated' });
+        }
+    })  
+})
+
+// Delete Products
+app.delete('/RemoveTest',(req, res)=>{
+    
+    const {id, image} = req.body;
+    fs.unlink(`public/upload/${image}`, (err)=>{
+        if(err){
+            console.error(err)
+            res.status(500).json({ error: 'Internal server error' });
+        }else{
+            const sql = `DELETE FROM testimonial WHERE "id"='${id}';`
+            db.query(sql, (err, result)=>{                    
+                    if(err) return res.json(err)
+                    return res.json(result)            
+            })
+        }
+    })
+    
+})
+
+// Others
+// Count for Dashboard  
 app.get('/counts', async(req, res)=>{
     try{
         const queryProduct = db.query("SELECT COUNT(*) FROM products")
@@ -281,5 +366,5 @@ app.get('/counts', async(req, res)=>{
 })
 
 app.listen(8801, ()=>{
-    console.log('Listening')
+    console.log("Listinig")
 })
