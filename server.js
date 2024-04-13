@@ -6,25 +6,28 @@ const multer = require('multer');
 const fs = require('fs')
 require('dotenv').config();
 
+const mysql = require('mysql')
+
 const app = express() //  initiallising Express server
 app.use(cors())   //    Middleware for server and client connections
 app.use(express.json()) //  to req and res in json
 app.use(express.static('public'))
 
-//formData decyript
-// app.use(formData.parse());
-// app.use(formData.format());
-// app.use(formData.stream());
-// app.use(formData.union());
 
-// Postgre Connection connect
-const db = new Pool({
-    host:process.env.DB_HOST,
-    port:process.env.DB_PORT,
-    user:process.env.DB_USER,
-    password:process.env.DB_PASSWORD,
-    database:process.env.DB_DATABASE,
-})
+// MYSQL Connect
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    // password: 'qwerty6789',
+    database: 'appl'
+  });
+  
+  db.connect(err => {
+    if (err) {
+      throw err;
+    }
+    console.log('MySQL Connected');
+  });
 
 //Multer SetUp
 const storage = multer.diskStorage({
@@ -42,13 +45,9 @@ const upload = multer({
     storage:storage
  });
 
-//  dummy get
-app.get('/',(req, res)=>{
-    return res.json("whats")
-})
 
 // Products
-//  products list
+//  products list SQL
 app.get('/products',(req, res)=>{
     const sql ="SELECT * FROM products"
     db.query(sql, (err, data)=>{
@@ -60,7 +59,7 @@ app.get('/products',(req, res)=>{
     })  
 })
 
-//  Add products
+//  Add products MySQL
 app.post('/addProducts',upload.fields([
     {name:'image1', maxCount:1},
     {name:'image2', maxCount:1},
@@ -73,14 +72,7 @@ app.post('/addProducts',upload.fields([
     const image3 = req.files.image3[0].filename
     const image4 = req.files.image4[0].filename
 
-    // console.log(feature)
-    // var lines = feature.split(/\r?\n/);
-    // feature.map((i)=>{
-    //     console.log(i)
-    // })
-    
-    // console.log(req.files)
-    const sql ="INSERT INTO products (name, catagory, type, range, price, emi, image1, image2, image3, image4, feature, description, techspec, date, popular) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)"
+    const sql ="INSERT INTO products (name, catagory, type, Prodrange, price, emi, image1, image2, image3, image4, feature, description, techspec, date, popular) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     db.query(sql, [name, catagory, type, range, price, emi, image1, image2, image3, image4, feature, description, techspec, date, popular], (err, result) => {
         if (err) {
         console.error('Error inserting data into MySQL:', err);
@@ -105,7 +97,7 @@ app.put('/updateProduct',upload.fields([
     const image4 = req.files.image4?req.files.image4[0].filename:req.body.image4
     
     console.log(popular)
-    const sql =`UPDATE products SET "name"='${name}', "catagory"='${catagory}', "type"='${type}', "range"='${range}', "price"='${price}', "emi"='${emi}', "image1"='${image1}', "image2"='${image2}', "image3"='${image3}', "image4"='${image4}', "feature"='${feature}', "description"='${description}', "techspec"='${techspec}', "popular"='${popular}' WHERE "productId" = '${id}'`
+    const sql =`UPDATE products SET name='${name}', catagory='${catagory}', type='${type}', Prodrange='${range}', price='${price}', emi='${emi}', image1='${image1}', image2='${image2}', image3='${image3}', image4='${image4}', feature='${feature}', description='${description}', techspec='${techspec}', popular='${popular}' WHERE productId = '${id}'`
     db.query(sql,(err, result) => {
         if (err) {
         console.error('Error inserting data into MySQL:', err);
@@ -116,15 +108,15 @@ app.put('/updateProduct',upload.fields([
     })  
 })
 
-// live product filter
+// live product filter SQL
 app.get('/liveProduct',(req, res)=>{
-    const sql =`SELECT * FROM products WHERE "popular"='y'`
+    const sql =`SELECT * FROM products WHERE popular='y'`
     db.query(sql, (err, data)=>{
         if(err) {
             return res.json(err)
             // console.error(err)
         } else{
-            return res.json(data.rows)
+            return res.json(data)
             // console.log(data)
         }
     })  
@@ -136,13 +128,13 @@ app.post('/filterProducts',upload.single('testImage'),(req, res)=>{
     const cat = category.split(',').map(tr=>`'${tr}'`).join(',')
     const ty = type.split(',').map(tr=>`'${tr}'`).join(',')
 
-    const sql = `SELECT * FROM products WHERE "catagory" IN (${cat}) AND "type" IN (${ty})`
+    const sql = `SELECT * FROM products WHERE catagory IN (${cat}) AND type IN (${ty})`
     db.query(sql, (err, data)=>{
         if(err) {
             return res.json(err)
             // console.error(err)
         } else{
-            return res.json(data.rows)
+            return res.json(data)
             // console.log(data.rows)
         }
     })   
@@ -162,7 +154,7 @@ app.delete('/RemoveProduct',(req, res)=>{
         })
     })
     if(delfile){
-        const sql = `DELETE FROM products WHERE "productId"='${id}';`
+        const sql = `DELETE FROM products WHERE productId='${id}';`
         db.query(sql, (err, result)=>{            
             if(err) return res.json(err)
             return res.json(result)
@@ -173,8 +165,6 @@ app.delete('/RemoveProduct',(req, res)=>{
         console.log("false")
         res.status(500).json({ error: 'Internal server error' });
     }
-    
-
 })
 
 //  Story
@@ -204,7 +194,7 @@ app.post('/addStory',upload.fields([
     const image4 = req.files.image4[0].filename
 
     // console.log(image1)
-    const sql ="INSERT INTO story (storytitle, storylocation, storygen, storysave, storystory, image1, image2, image3, image4, storydate, storytype, storylive) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"
+    const sql ="INSERT INTO story (storytitle, storylocation, storygen, storysave, storystory, image1, image2, image3, image4, storydate, storytype, storylive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     db.query(sql, [prop.storytitle, prop.storylocation, prop.storygen, prop.storysave, prop.storystory, image1, image2, image3, image4, prop.date, prop.type, prop.live], (err, result) => {
         if (err) {
         console.error('Error inserting data into MySQL:', err);
@@ -222,32 +212,32 @@ app.put('/updateStory',upload.fields([
     {name:'image3', maxCount:1},
     {name:'image4', maxCount:1},
     ]),(req, res)=>{
-    const {id, storytitle, storylocation, storygen, storysave, storystory} =req.body
+    const {id, storytitle, storylocation, storygen, storysave, storystory, type, live} =req.body
     const image1 = req.files.image1?req.files.image1[0].filename:req.body.image1
     const image2 = req.files.image2?req.files.image2[0].filename:req.body.image2
     const image3 = req.files.image3?req.files.image3[0].filename:req.body.image3
     const image4 = req.files.image4?req.files.image4[0].filename:req.body.image4
     
-    const sql =`UPDATE story SET "storytitle"='${storytitle}', "storylocation"='${storylocation}', "storygen"='${storygen}', "storysave"='${storysave}', "storystory"='${storystory}', "image1"='${image1}', "image2"='${image2}', "image3"='${image3}', "image4"='${image4}', "storytype"='${type}', "storylive"='${live}' WHERE "storyid" = '${id}'`
+    const sql =`UPDATE story SET storytitle='${storytitle}', storylocation='${storylocation}', storygen='${storygen}', storysave='${storysave}', storystory='${storystory}', image1='${image1}', image2='${image2}', image3='${image3}', image4='${image4}', storytype='${type}', storylive='${live}' WHERE storyid = '${id}'`
     db.query(sql,(err, result) => {
         if (err) {
         console.error('Error inserting data into MySQL:', err);
         res.status(500).json({ error: 'Internal server error' });
         } else {
-        res.status(200).json({ message: 'Product Updated' });
+        res.status(200).json({ message: 'Story Updated' });
         }
     })  
 })
 
-// live project filter
+// live project filter SQL
 app.get('/liveProject',(req, res)=>{
-    const sql =`SELECT * FROM story WHERE "storylive" IN ('y','n')`
+    const sql =`SELECT * FROM story WHERE storylive = 'y'`
     db.query(sql, (err, data)=>{
         if(err) {
             return res.json(err)
             // console.error(err)
         } else{
-            return res.json(data.rows)
+            return res.json(data)
             // console.log(data)
         }
     })  
@@ -269,7 +259,7 @@ app.delete('/RemoveStory',(req, res)=>{
         })
     })
     if(delfile){
-        const sql = `DELETE FROM story WHERE "storyid"='${id}';`
+        const sql = `DELETE FROM story WHERE storyid='${id}';`
         db.query(sql, (err, result)=>{    
             // if(err) console.log("err")
             // console.log("result")        
@@ -301,9 +291,8 @@ app.get('/testimonial',(req, res)=>{
 app.post('/addTest',upload.single('testImage'),(req, res)=>{
     const prop = req.body
     const image = req.file.filename
-    console.log(image)
 
-    const sql ="INSERT INTO testimonial (testtitle, testcontent, testname, testrating, testimage) VALUES ($1, $2, $3, $4, $5)"
+    const sql ="INSERT INTO testimonial (testtitle, testcontent, testname, testrating, testimage) VALUES (?, ?, ?, ?, ?)"
     db.query(sql, [prop.testTitle, prop.testContent, prop.testName, prop.testRating, image], (err, result) => {
         if (err) {
         console.error('Error inserting data into MySQL:', err);
@@ -317,9 +306,9 @@ app.post('/addTest',upload.single('testImage'),(req, res)=>{
 // Update Testimonial
 app.put('/updateTest',upload.single('testImage'),(req, res)=>{
     const {id, testTitle, testContent, testName, testRating} =req.body
-    const image = req.files.image?req.files.image.filename:req.body.testImage
+    const image = req.file?req.file.filename:req.body.testImage
     
-    const sql =`UPDATE testimonial SET "testTitle"='${testTitle}', "testContent"='${testContent}', "testName"='${testName}', "testRating"='${testRating}', "testimage"='${image}' WHERE "id" = '${id}'`
+    const sql =`UPDATE testimonial SET testTitle='${testTitle}', testContent='${testContent}', testName='${testName}', testRating='${testRating}', testimage='${image}' WHERE id = '${id}'`
     db.query(sql,(err, result) => {
         if (err) {
         console.error('Error inserting data into MySQL:', err);
@@ -339,10 +328,10 @@ app.delete('/RemoveTest',(req, res)=>{
             console.error(err)
             res.status(500).json({ error: 'Internal server error' });
         }else{
-            const sql = `DELETE FROM testimonial WHERE "id"='${id}';`
+            const sql = `DELETE FROM testimonial WHERE id='${id}';`
             db.query(sql, (err, result)=>{                    
                     if(err) return res.json(err)
-                    return res.json(result)            
+                    return res.json(result)        
             })
         }
     })
@@ -351,14 +340,28 @@ app.delete('/RemoveTest',(req, res)=>{
 
 // Others
 // Count for Dashboard  
-app.get('/counts', async(req, res)=>{
+app.get('/counts', (req, res)=>{
     try{
-        const queryProduct = db.query("SELECT COUNT(*) FROM products")
-        const queryStories = db.query("SELECT COUNT(*) FROM story")
-        const queryTests = db.query("SELECT COUNT(*) FROM testimonial")
 
-        const result = await Promise.all([queryProduct, queryStories, queryTests])
-        res.json({products:parseInt(result[0].rows[0].count), stories:parseInt(result[1].rows[0].count), tests:parseInt(result[2].rows[0].count)})
+        const sql1 ="SELECT COUNT(*) AS products FROM products"
+        const sql2 = "SELECT COUNT(*) AS story FROM story"
+        const sql3 = "SELECT COUNT(*) AS testimonial FROM testimonial"
+        db.query(sql1, (err1, products)=>{
+            if(err1) {
+                return res.json(err1)
+            } 
+            db.query(sql2, (err2, story)=>{
+                if(err2) {
+                    return res.json(err2)
+                }
+                db.query(sql3, (err3, testimonial)=>{
+                    if(err3) {
+                        return res.json(err3)
+                    }
+                    res.json({products, story, testimonial})
+                })
+            }) 
+        }) 
     }catch(err){
         console.error("count:",err)
         res.status(500).json({ error: 'Internal server error' });
